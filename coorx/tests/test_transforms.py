@@ -7,6 +7,7 @@ import numpy as np
 import coorx
 from coorx import LogTransform
 
+
 try:
     import itk
 
@@ -20,6 +21,14 @@ try:
     HAVE_VISPY = True
 except ImportError:
     HAVE_VISPY = False
+
+
+try:
+    import pyqtgraph as pg
+
+    HAVE_PG = True
+except ImportError:
+    HAVE_PG = False
 
 
 NT = coorx.NullTransform
@@ -483,6 +492,16 @@ class SRT3DTransformTest(unittest.TestCase):
         assert np.allclose(vt.map((1, 1, 1))[:3], tr.map((1, 1, 1)))
         assert np.allclose(vt.map((1, 3, 5))[:3], tr.map((1, 3, 5)))
 
+    @unittest.skipIf(not HAVE_PG, "pyqtgraph could not be imported")
+    def test_to_and_from_pyqtgraph(self):
+        axis = np.array((1, 1, 2))
+        axis = axis / np.linalg.norm(axis)
+        tr = coorx.SRT3DTransform(scale=(1, 2, 3), offset=(10, 5, 3), angle=120, axis=axis)
+        tr2 = coorx.SRT3DTransform.from_pyqtgraph(tr.as_pyqtgraph())
+        assert np.allclose(tr.full_matrix, tr2.full_matrix)
+        pt = np.random.normal(size=(10, 3))
+        assert np.allclose(tr.map(pt), tr2.map(pt))
+
     def test_composite(self):
         tr1 = coorx.SRT3DTransform(offset=(1, 2, 3))
         tr2 = coorx.SRT3DTransform(scale=(10, 10, 1))
@@ -535,3 +554,53 @@ class TransformInverse(unittest.TestCase):
         # abs_pos = np.abs(pos)
         # tr = LT(base=(2, 4.5, 0))
         # assert np.allclose(abs_pos, tr.inverse.map(tr.map(abs_pos))[:,:3])
+
+
+class BilinearTest(unittest.TestCase):
+    def test_bilinear(self):
+        # identity
+        tr = self.check_mapping(
+            [[0, 0], [1, 0], [0, 1], [1, 1]],
+            [[0, 0], [1, 0], [0, 1], [1, 1]]
+        )
+        assert np.allclose(tr.matrix, np.eye(4)[1:3])
+
+        tr = self.check_mapping(
+            [[0, 0], [1, 0], [0, 1], [1, 1]],
+            [[0, 0], [1, 1], [0, 1], [1, 0]]
+        )
+
+        tr = self.check_mapping(
+            [[0, 0], [1, 0], [0, 1], [1, 1]],
+            [[1, 1], [3, 0], [0, 4], [7, 7]]
+        )
+
+    def check_mapping(self, a, b):
+        a = np.asarray(a)
+        b = np.asarray(b)
+
+        tr = coorx.linear.BilinearTransform()
+        tr.set_mapping(a, b)
+        c = tr.map(a)
+        assert c.shape == b.shape
+        assert np.allclose(c, b)
+
+        assert np.allclose(
+            tr.map(a.mean(axis=0)),
+            b.mean(axis=0)
+        )
+
+        tr_inv = tr.inverse
+        d = tr_inv.map(b)
+        assert d.shape == a.shape
+        assert np.allclose(d, a)
+
+        # Note: there are cases where a bilinear transform is not invertible
+        # assert np.allclose(
+        #     tr_inv.map(b.mean(axis=0)),
+        #     a.mean(axis=0)
+        # )
+
+        assert np.all(tr_inv.map(b) == tr.imap(b))
+
+        return tr

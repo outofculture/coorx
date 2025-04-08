@@ -15,7 +15,7 @@ API Issues to work out:
 import numpy as np
 
 from ._util import DependentTransformError
-from .systems import CoordinateSystemGraph
+from .systems import CoordinateSystemGraph, CoordinateSystem
 from .types import Dims, StrOrNone, Mappable
 
 
@@ -123,10 +123,13 @@ class Transform(object):
     def set_systems(self, from_cs, to_cs, cs_graph=None):
         assert (from_cs is None) == (to_cs is None), "from_cs and to_cs must both be None or both be coordinate systems"
         if from_cs is not None:
-            cs_graph = CoordinateSystemGraph.get_graph(cs_graph)
+            if cs_graph is None and isinstance(from_cs, CoordinateSystem):
+                cs_graph = from_cs.graph
+            else:
+                cs_graph = CoordinateSystemGraph.get_graph(cs_graph)
             cs_graph.add_transform(self, from_cs=from_cs, to_cs=to_cs)
 
-    def map(self, obj:Mappable):
+    def map(self, obj: Mappable):
         """
         Return *obj* mapped through the forward transformation.
 
@@ -266,7 +269,7 @@ class Transform(object):
         raise NotImplementedError()
 
     @property
-    def full_matrix(self):
+    def full_matrix(self) -> np.ndarray:
         """
         Return the full transformation matrix for this transform, if possible. 
 
@@ -401,7 +404,7 @@ class Transform(object):
 
     def validate_transform_for_mul(self, tr):
         if tr.systems[1] != self.systems[0]:
-            raise TypeError(f"Cannot multiply transforms with different inner coordinate systems: {self.systems[1]} != {tr.systems[0]}")
+            raise TypeError(f"Cannot multiply transforms with different inner coordinate systems: {self.systems[0]} != {tr.systems[1]}")
 
 
 class InverseTransform(Transform):

@@ -19,8 +19,6 @@ jobs:
         pip install
         build
         --user
-    - name: Install pytest
-      run: python3 -m pip install pytest
     - name: Build a binary wheel and a source tarball
       run: python3 -m build
     - name: Store the distribution packages
@@ -38,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/<package-name>  # Replace <package-name> with your PyPI project name
+      url: https://pypi.org/p/coorx
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -48,8 +46,6 @@ jobs:
       with:
         name: python-package-distributions
         path: dist/
-    - name: Run tests
-      run: python3 -m pytest
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
 
